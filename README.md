@@ -1,4 +1,4 @@
-# siglent_driver
+# Siglent Python Driver
 
 `siglent_driver` is a standalone Python package for the Siglent SDL1030 electronic load.
 
