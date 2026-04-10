@@ -208,5 +208,21 @@ def measurement_row(
     }
 
 
+def append_discharge_capacity(row: dict[str, object], load: SiglentSDL1030, enabled: bool) -> bool:
+    if not enabled:
+        row["discharge_capacity"] = ""
+        return False
+    try:
+        row["discharge_capacity"] = load.get_battery_discharge_capacity()
+        return True
+    except InstrumentError as exc:
+        logging.getLogger(__name__).warning(
+            "Skipping discharge capacity logging because the instrument did not answer the query: %s",
+            exc,
+        )
+        row["discharge_capacity"] = ""
+        return False
+
+
 def sleep_until_next_sample(interval_s: float) -> None:
     time.sleep(interval_s)

@@ -15,6 +15,7 @@ from common import (
     LAN_VISA_RESOURCE,
     USB_VISA_RESOURCE,
     USBTMC_RESOURCE,
+    append_discharge_capacity,
     apply_common_settings,
     connect_from_config,
     create_log_path,
@@ -70,6 +71,7 @@ def main() -> int:
                 "voltage_v",
                 "current_a",
                 "power_w",
+                "discharge_capacity",
             ],
         )
         apply_common_settings(load, RUN)
@@ -80,19 +82,24 @@ def main() -> int:
 
         started = time.monotonic()
         sample_index = 0
+        discharge_capacity_enabled = True
         try:
             for step in RUN["steps"]:
                 load.set_current(float(step["current_a"]))
                 step_started = time.monotonic()
                 while time.monotonic() - step_started < float(step["duration_s"]):
-                    writer.writerow(
-                        measurement_row(
-                            elapsed_s=time.monotonic() - started,
-                            sample_index=sample_index,
-                            step_name=str(step["name"]),
-                            load=load,
-                        )
+                    row = measurement_row(
+                        elapsed_s=time.monotonic() - started,
+                        sample_index=sample_index,
+                        step_name=str(step["name"]),
+                        load=load,
                     )
+                    discharge_capacity_enabled = append_discharge_capacity(
+                        row,
+                        load,
+                        discharge_capacity_enabled,
+                    )
+                    writer.writerow(row)
                     handle.flush()
                     sample_index += 1
                     sleep_until_next_sample(float(RUN["sample_interval_s"]))

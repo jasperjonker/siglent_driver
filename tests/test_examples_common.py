@@ -14,6 +14,18 @@ common = module_from_spec(COMMON_SPEC)
 COMMON_SPEC.loader.exec_module(common)
 
 
+class FakeLoad:
+    def __init__(self, capacity: float | None = None, exc: Exception | None = None) -> None:
+        self.capacity = capacity
+        self.exc = exc
+
+    def get_battery_discharge_capacity(self) -> float:
+        if self.exc is not None:
+            raise self.exc
+        assert self.capacity is not None
+        return self.capacity
+
+
 def test_usb_visa_resource_match_accepts_pyvisa_py_format() -> None:
     assert common._is_sdl1030_usb_visa_resource("USB0::0xF4EC::0x1621::SDL123456::0::INSTR") is True
     assert common._is_sdl1030_usb_visa_resource("USB0::0xF4EC::0x1621::SDL123456::INSTR") is True
@@ -88,3 +100,23 @@ def test_find_usb_resource_raises_when_no_usb_transport_matches(monkeypatch: pyt
 
     with pytest.raises(InstrumentError, match="No SDL1030 USB resource was found via VISA-over-USB or Linux USBTMC"):
         common.find_usb_resource("@py")
+
+
+def test_append_discharge_capacity_records_value() -> None:
+    row: dict[str, object] = {}
+
+    enabled = common.append_discharge_capacity(row, FakeLoad(capacity=0.123), True)
+
+    assert enabled is True
+    assert row["discharge_capacity"] == 0.123
+
+
+def test_append_discharge_capacity_disables_on_query_error(caplog: pytest.LogCaptureFixture) -> None:
+    row: dict[str, object] = {}
+
+    with caplog.at_level("WARNING"):
+        enabled = common.append_discharge_capacity(row, FakeLoad(exc=InstrumentError("timeout")), True)
+
+    assert enabled is False
+    assert row["discharge_capacity"] == ""
+    assert "Skipping discharge capacity logging" in caplog.text

@@ -1,6 +1,9 @@
+import errno
 import logging
 
-from siglent_driver import Measurement, configure_logging
+import pytest
+from siglent_driver import InstrumentError, Measurement, configure_logging
+import siglent_driver.siglent as siglent_module
 from siglent_driver.siglent import (
     CURRENT_RANGE_VALUES,
     VOLTAGE_RANGE_VALUES,
@@ -13,6 +16,7 @@ from siglent_driver.siglent import (
     TransientWaveform,
     TriggerSource,
     VoltageRange,
+    _UsbTmcTransport,
     _battery_mode_token,
     _canonical_current_range,
     _canonical_voltage_range,
@@ -181,6 +185,7 @@ def test_query_methods_parse_responses() -> None:
             ":SOUR:POWer:VRANG?": "150",
             "SYST:SENS?": "1",
             ":SOUR:CURRent:PROTection:STAT?": "0",
+            ":SOUR:BATT:DISCHArg:CAPability?": "0.123",
             ":SOUR:BATT:DCR:RESult?": "0.082",
             "MEAS:WAVEdata? CURRent": "0.1,0.2,0.3",
         }
@@ -190,6 +195,7 @@ def test_query_methods_parse_responses() -> None:
     assert load.get_voltage_range("power") == 150.0
     assert load.is_4wire_enabled() is True
     assert load.is_current_protection_enabled() is False
+    assert load.get_battery_discharge_capacity() == 0.123
     assert load.get_battery_dcr_result() == 0.082
     assert load.measure_waveform("current") == [0.1, 0.2, 0.3]
     assert transport.commands == [
@@ -197,6 +203,7 @@ def test_query_methods_parse_responses() -> None:
         ("query", ":SOUR:POWer:VRANG?"),
         ("query", "SYST:SENS?"),
         ("query", ":SOUR:CURRent:PROTection:STAT?"),
+        ("query", ":SOUR:BATT:DISCHArg:CAPability?"),
         ("query", ":SOUR:BATT:DCR:RESult?"),
         ("query", "MEAS:WAVEdata? CURRent"),
     ]
@@ -221,6 +228,27 @@ def test_context_manager_opens_and_closes(monkeypatch) -> None:
         assert entered is load
 
     assert calls == ["open", "close"]
+
+
+def test_usbtmc_query_wraps_kernel_timeout(monkeypatch) -> None:
+    transport = _UsbTmcTransport.__new__(_UsbTmcTransport)
+    transport.device_path = "/dev/usbtmc0"
+    transport.timeout_ms = 10
+    transport._fd = 1
+
+    monkeypatch.setattr(_UsbTmcTransport, "write", lambda self, command: None)
+
+    monotonic_values = iter([0.0, 0.0, 0.02])
+    monkeypatch.setattr(siglent_module.time, "monotonic", lambda: next(monotonic_values))
+    monkeypatch.setattr(siglent_module.time, "sleep", lambda delay: None)
+    monkeypatch.setattr(
+        siglent_module.os,
+        "read",
+        lambda fd, size: (_ for _ in ()).throw(TimeoutError(errno.ETIMEDOUT, "Connection timed out")),
+    )
+
+    with pytest.raises(InstrumentError, match="Timed out waiting for response from /dev/usbtmc0"):
+        transport.query(":SOUR:BATT:DISCHArg:CAPability?")
 
 
 def test_configure_logging_is_idempotent() -> None:

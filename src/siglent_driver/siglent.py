@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import errno
 from enum import Enum, StrEnum
 import logging
 import os
@@ -296,7 +297,9 @@ class _UsbTmcTransport:
         while time.monotonic() < deadline:
             try:
                 data = os.read(self._fd, 65536)
-            except BlockingIOError:
+            except OSError as exc:
+                if exc.errno not in (errno.EAGAIN, errno.EWOULDBLOCK, errno.ETIMEDOUT):
+                    raise InstrumentError(f"Failed while reading response from {self.device_path}") from exc
                 data = b""
             if data:
                 return data.decode(errors="replace").strip()
@@ -702,10 +705,10 @@ class SiglentSDL1030:
             self.set_battery_timer_stop_enabled(True)
 
     def get_battery_discharge_capacity(self) -> float:
-        return float(self.query(":SOUR:BATT:DISCH:CAP?"))
+        return float(self.query(":SOUR:BATT:DISCHArg:CAPability?"))
 
     def get_battery_discharge_time(self) -> float:
-        return float(self.query(":SOUR:BATT:DISCH:TIM?"))
+        return float(self.query(":SOUR:BATT:DISCHArg:TIMer?"))
 
     def set_battery_dcr_time1(self, seconds: float) -> None:
         self.write(f":SOUR:BATT:DCR:TIME1 {seconds}")

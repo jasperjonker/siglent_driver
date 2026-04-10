@@ -18,6 +18,7 @@ from common import (
     LAN_VISA_RESOURCE,
     USB_VISA_RESOURCE,
     USBTMC_RESOURCE,
+    append_discharge_capacity,
     apply_common_settings,
     connect_from_config,
     create_log_path,
@@ -73,6 +74,7 @@ def main() -> int:
                 "voltage_v",
                 "current_a",
                 "power_w",
+                "discharge_capacity",
             ],
         )
         apply_common_settings(load, RUN)
@@ -89,17 +91,22 @@ def main() -> int:
         load.set_input_enabled(True)
 
         started = time.monotonic()
+        discharge_capacity_enabled = True
         try:
             sample_index = 0
             while time.monotonic() - started < float(RUN["max_duration_s"]):
-                writer.writerow(
-                    measurement_row(
-                        elapsed_s=time.monotonic() - started,
-                        sample_index=sample_index,
-                        step_name="battery_cc_5a",
-                        load=load,
-                    )
+                row = measurement_row(
+                    elapsed_s=time.monotonic() - started,
+                    sample_index=sample_index,
+                    step_name="battery_cc_5a",
+                    load=load,
                 )
+                discharge_capacity_enabled = append_discharge_capacity(
+                    row,
+                    load,
+                    discharge_capacity_enabled,
+                )
+                writer.writerow(row)
                 handle.flush()
                 sample_index += 1
                 if not load.is_input_enabled():
