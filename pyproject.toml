@@ -6,6 +6,7 @@ build-backend = "hatchling.build"
 name = "siglent_driver"
 dynamic = ["version"]
 description = "Python driver for the Siglent SDL1030 electronic load."
+license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Jasper" }]
@@ -14,17 +15,22 @@ classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
   "Intended Audience :: Developers",
+  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Typing :: Typed",
   "Topic :: Scientific/Engineering",
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-dependencies = []
+dependencies = [
+  "pyvisa>=1.14",
+  "pyvisa-py>=0.7",
+  "pyusb>=1.2",
+]
 
 [project.optional-dependencies]
-visa = ["pyvisa>=1.14"]
 dev = ["pytest>=8.0", "build>=1.2", "hatch>=1.14"]
 
 [tool.hatch.version]
@@ -39,6 +45,8 @@ packages = ["src/siglent_driver"]
 
 [tool.hatch.build.targets.sdist]
 include = [
+  "/LICENSE",
+  "/examples",
   "/src",
   "/tests",
   "/README.md",

@@ -1,17 +1,12 @@
-# Siglent Python Driver
+# siglent_driver
 
-`siglent_driver` is a standalone Python package for the Siglent SDL1030 electronic load.
+`siglent_driver` is a Python library for controlling a Siglent `SDL1030X` electronic load over SCPI.
 
-## Features
-
-- SCPI control over VISA
-- Works with USBTMC and VISA-addressable LAN resources
-- Static mode control for CC/CV/CP/CR/LED
-- Input enable control
-- Voltage, current, power, and resistance setpoints
-- Voltage, current, power, and resistance measurements
-- Basic LIST-mode configuration helpers
-- Trigger-source and trigger helpers
+It is set up for practical bench use:
+- `pyvisa`, `pyvisa-py`, and `pyusb` are regular dependencies
+- examples are editable scripts with a config block at the top
+- CSV logs are written with timestamped filenames into `log/`
+- both VISA resource strings and Linux `/dev/usbtmc*` paths are supported
 
 ## Install
 
@@ -19,55 +14,99 @@
 pip install -e .
 ```
 
-With VISA support:
-
-```bash
-pip install -e .[visa]
-```
-
-## Usage
+## Quick Start
 
 ```python
-from siglent_driver import SiglentSDL1030
+from siglent_driver import CurrentRange, LoadMode, SiglentSDL1030, VoltageRange
 
-load = SiglentSDL1030("USB0::0xF4EC::0xEE38::SDL1XCAD2R0001::INSTR")
-load.open()
-load.set_mode("current")
-load.set_current(5.0)
-load.set_input_enabled(True)
-print(load.measure_all())
-load.close()
+usb_resource = "USB0::0xF4EC::0x1621::YOUR_SERIAL_HERE::INSTR"
+
+with SiglentSDL1030(usb_resource, visa_backend="@py") as load:
+    load.set_4wire_enabled(True)
+    load.set_mode(LoadMode.CC)
+    load.set_current_range("current", CurrentRange.A5)
+    load.set_voltage_range("current", VoltageRange.V36)
+    load.set_current(5.0)
+    load.set_input_enabled(True)
+    print(load.measure_all())
+    load.set_input_enabled(False)
 ```
 
-## Build
+Example VISA resource strings:
+
+```python
+usb_resource = "USB0::0xF4EC::0x1621::YOUR_SERIAL_HERE::INSTR"
+lan_resource = "TCPIP0::192.168.1.55::inst0::INSTR"
+```
+
+## Examples
+
+Each example has two blocks at the top:
+- `CONNECTION` defaults to auto-detecting the SDL over VISA-over-USB with `pyvisa-py`, with explicit USB/LAN/USBTMC alternatives
+- `RUN` for 4-wire sense, enum-based fixed ranges, OCP/OPP, documented turn-on voltage behavior, built-in stop conditions, current levels, timing, and sampling
+
+Available examples:
+
+- [cc_load_5a.py](/home/jasper/Documents/Wingtra/github/siglent_driver/examples/cc_load_5a.py): `5 A` run using the SDL's built-in stop conditions
+- [dcir_battery_test.py](/home/jasper/Documents/Wingtra/github/siglent_driver/examples/dcir_battery_test.py): battery/DCIR example
+- [current_sequence_dict.py](/home/jasper/Documents/Wingtra/github/siglent_driver/examples/current_sequence_dict.py): CC sequence using a simple dict of steps (`2 A`, `5 A`, `10 A`)
+
+Folder guide:
+- [README.md](/home/jasper/Documents/Wingtra/github/siglent_driver/examples/README.md)
+
+Run them from the repo root:
 
 ```bash
-hatch build
+uv run python examples/cc_load_5a.py
+uv run python examples/dcir_battery_test.py
+uv run python examples/current_sequence_dict.py
 ```
 
-or:
+Each run writes a timestamped CSV into `log/`.
+
+## Logging
+
+The library stays quiet by default.
+
+- Use `configure_logging(...)` for simple scripts.
+- SCPI traffic is logged at `DEBUG`.
+- Transport open/close events are logged at `INFO`.
+- Current and voltage range helpers snap to the SDL1030's fixed hardware ranges.
+
+## Supported Features
+
+- CC, CV, CP, CR, and LED static modes
+- current and voltage range helpers
+- enum helpers for load modes and the fixed `5/30 A` and `36/150 V` ranges
+- 4-wire sense control
+- current slew helpers
+- transient configuration
+- current and power protection helpers
+- LIST mode helpers
+- trigger helpers
+- battery-mode and DCIR configuration helpers
+- VISA and Linux USBTMC transports
+
+## Caveat: DCIR
+
+The documented battery/DCIR SCPI commands are implemented, but live testing on an `SDL1030X` running firmware `1.1.1.23R4` showed a limitation:
+
+- the battery test starts and finishes
+- `:SOUR:BATT:DCR:RESult?` remains `0.0`
+- `:SOUR:BATT:DISCHArg:TIMer?` and `:SOUR:BATT:DISCHArg:CAPability?` time out on that firmware
+
+So the DCIR API is present, but remote execution appears firmware-dependent.
+
+## Development
+
+Run tests:
 
 ```bash
-uv run --with hatch hatch build
+.venv/bin/pytest -q
 ```
 
-## Versioning
-
-Versions come from git tags via `hatch-vcs`.
-
-Suggested tag format:
+Exercise a connected SDL1030 with conservative settings:
 
 ```bash
-git tag v0.1.0
+.venv/bin/python scripts/exercise_sdl1030.py --resource /dev/usbtmc0
 ```
-
-If no git metadata is available, the build falls back to `0.1.0.dev0`.
-
-## Release Readiness
-
-Before publishing to PyPI:
-
-- add a `LICENSE`
-- add real project URLs in `pyproject.toml`
-- validate the driver on the actual SDL1030
-- build from a tagged git checkout

@@ -1,8 +1,12 @@
 .venv/
+.uv-cache/
 .pytest_cache/
+.coverage
 __pycache__/
 *.py[cod]
 *.egg-info/
 dist/
 build/
+log/
+resources/
 src/siglent_driver/_version.py
