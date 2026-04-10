@@ -13,6 +13,7 @@ from siglent_driver.siglent import (
     TransientWaveform,
     TriggerSource,
     VoltageRange,
+    _battery_mode_token,
     _canonical_current_range,
     _canonical_voltage_range,
     _siglent_mode_token,
@@ -46,8 +47,9 @@ def test_mode_token_mapping() -> None:
     assert _siglent_mode_token("current") == "CURRent"
     assert _siglent_mode_token(LoadMode.CV) == "VOLTage"
     assert _siglent_mode_token(TransientMode.CP) == "POWer"
-    assert _siglent_mode_token(BatteryMode.CR) == "RESistance"
     assert _siglent_mode_token(LoadMode.LED) == "LED"
+    assert _battery_mode_token(BatteryMode.CR) == "RESistance"
+    assert _battery_mode_token(BatteryMode.DCR) == "DCR"
 
 
 def test_measurement_to_dict() -> None:
@@ -148,6 +150,23 @@ def test_protection_and_battery_dcr_commands() -> None:
         ("write", ":SOUR:BATT:CAP:STAT OFF"),
         ("write", ":SOUR:BATT:TIM 120.0"),
         ("write", ":SOUR:BATT:TIM:STAT ON"),
+        ("write", ":SOUR:BATT:DCR:CURR1 0.1"),
+        ("write", ":SOUR:BATT:DCR:CURR2 0.2"),
+        ("write", ":SOUR:BATT:DCR:TIME1 1.0"),
+        ("write", ":SOUR:BATT:DCR:TIME2 1.5"),
+    ]
+
+
+def test_set_battery_mode_dcr_sends_dcr_mode_command() -> None:
+    load, transport = make_load()
+
+    load.enter_battery_mode()
+    load.set_battery_mode(BatteryMode.DCR)
+    load.configure_battery_dcr(current1_a=0.1, current2_a=0.2, time1_s=1.0, time2_s=1.5)
+
+    assert transport.commands == [
+        ("write", ":SOUR:BATT:FUNC"),
+        ("write", ":SOUR:BATT:MODE DCR"),
         ("write", ":SOUR:BATT:DCR:CURR1 0.1"),
         ("write", ":SOUR:BATT:DCR:CURR2 0.2"),
         ("write", ":SOUR:BATT:DCR:TIME1 1.0"),

@@ -43,6 +43,7 @@ class BatteryMode(StrEnum):
     CC = "current"
     CP = "power"
     CR = "resistance"
+    DCR = "dcr"
 
 
 class TriggerSource(StrEnum):
@@ -102,7 +103,7 @@ class VoltageRange(float, Enum):
 LoadModeLike: TypeAlias = LoadMode | Literal["current", "voltage", "power", "resistance", "led"]
 TransientModeLike: TypeAlias = TransientMode | Literal["current", "voltage", "power", "resistance"]
 TransientWaveformLike: TypeAlias = TransientWaveform | Literal["continuous", "pulse", "toggle"]
-BatteryModeLike: TypeAlias = BatteryMode | Literal["current", "power", "resistance"]
+BatteryModeLike: TypeAlias = BatteryMode | Literal["current", "power", "resistance", "dcr"]
 TriggerSourceLike: TypeAlias = TriggerSource | Literal["manual", "external", "bus"]
 ProtectionTypeLike: TypeAlias = ProtectionType | Literal["current", "power"]
 ResistanceRangeLike: TypeAlias = ResistanceRange | Literal["low", "middle", "high", "upper"]
@@ -115,13 +116,22 @@ CURRENT_RANGE_VALUES = tuple(float(value) for value in CurrentRange)
 VOLTAGE_RANGE_VALUES = tuple(float(value) for value in VoltageRange)
 
 
-def _siglent_mode_token(mode: LoadModeLike | TransientModeLike | BatteryModeLike | WaveformMetricLike) -> str:
+def _siglent_mode_token(mode: LoadModeLike | TransientModeLike | WaveformMetricLike) -> str:
     return {
         "current": "CURRent",
         "voltage": "VOLTage",
         "power": "POWer",
         "resistance": "RESistance",
         "led": "LED",
+    }[str(mode)]
+
+
+def _battery_mode_token(mode: BatteryModeLike) -> str:
+    return {
+        "current": "CURRent",
+        "power": "POWer",
+        "resistance": "RESistance",
+        "dcr": "DCR",
     }[str(mode)]
 
 
@@ -584,7 +594,7 @@ class SiglentSDL1030:
         return self.query(":SOUR:BATT:FUNC?") == "1"
 
     def set_battery_mode(self, mode: BatteryModeLike) -> None:
-        self.write(f":SOUR:BATT:MODE {_siglent_mode_token(mode)}")
+        self.write(f":SOUR:BATT:MODE {_battery_mode_token(mode)}")
 
     def get_battery_mode(self) -> str:
         return self.query(":SOUR:BATT:MODE?")

@@ -5,7 +5,7 @@
 It is set up for practical bench use:
 - `pyvisa`, `pyvisa-py`, and `pyusb` are regular dependencies
 - examples are editable scripts with a config block at the top
-- CSV logs are written with timestamped filenames into `log/`
+- example scripts support timestamped CSV logs where appropriate
 - both VISA resource strings and Linux `/dev/usbtmc*` paths are supported
 
 ## Install
@@ -48,7 +48,7 @@ Each example has two blocks at the top:
 Available examples:
 
 - [cc_load_5a.py](/home/jasper/Documents/Wingtra/github/siglent_driver/examples/cc_load_5a.py): `5 A` run using the SDL's built-in stop conditions
-- [dcir_battery_test.py](/home/jasper/Documents/Wingtra/github/siglent_driver/examples/dcir_battery_test.py): battery/DCIR example
+- [dcir_battery_test.py](/home/jasper/Documents/Wingtra/github/siglent_driver/examples/dcir_battery_test.py): battery/DCIR console result
 - [current_sequence_dict.py](/home/jasper/Documents/Wingtra/github/siglent_driver/examples/current_sequence_dict.py): CC sequence using a simple dict of steps (`2 A`, `5 A`, `10 A`)
 
 Folder guide:
@@ -62,7 +62,7 @@ uv run python examples/dcir_battery_test.py
 uv run python examples/current_sequence_dict.py
 ```
 
-Each run writes a timestamped CSV into `log/`.
+The CC and sequence examples write timestamped CSV files into `log/`. The DCIR example prints the final result to the console.
 
 ## Logging
 
@@ -84,12 +84,12 @@ The library stays quiet by default.
 - current and power protection helpers
 - LIST mode helpers
 - trigger helpers
-- battery-mode and DCIR configuration helpers
+- battery-test helpers for CC/CP/CR plus DCR configuration helpers
 - VISA and Linux USBTMC transports
 
 ## Caveat: DCIR
 
-The documented battery/DCIR SCPI commands are implemented, but live testing on an `SDL1030X` running firmware `1.1.1.23R4` showed a limitation:
+The driver now selects DCR explicitly with `:SOUR:BATT:MODE DCR` and then programs the dedicated `:SOUR:BATT:DCR:*` parameters. Even with that sequence, live testing on an `SDL1030X` running firmware `1.1.1.23R4` still showed a limitation:
 
 - the battery test starts and finishes
 - `:SOUR:BATT:DCR:RESult?` remains `0.0`

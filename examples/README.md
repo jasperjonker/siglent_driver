@@ -21,13 +21,14 @@ Each example in this folder follows the same layout:
    - currents, timing, and sample interval
    - sequence steps for the dict-driven example
 
-3. Timestamped CSV output
-   Every script writes into `log/` with a UTC timestamp in the filename.
+3. Output
+   The CC and sequence examples write timestamped CSV files into `log/`.
+   The DCIR example prints the final result to the console.
 
 Available scripts:
 
 - [`cc_load_5a.py`](/home/jasper/Documents/Wingtra/github/siglent_driver/examples/cc_load_5a.py): 5 A run with the SDL's built-in stop conditions
-- [`dcir_battery_test.py`](/home/jasper/Documents/Wingtra/github/siglent_driver/examples/dcir_battery_test.py): battery/DCIR trace capture
+- [`dcir_battery_test.py`](/home/jasper/Documents/Wingtra/github/siglent_driver/examples/dcir_battery_test.py): battery/DCIR console result
 - [`current_sequence_dict.py`](/home/jasper/Documents/Wingtra/github/siglent_driver/examples/current_sequence_dict.py): `2 A -> 5 A -> 10 A` sequence from a list of dicts
 
 Run from the repo root with the synced environment:
