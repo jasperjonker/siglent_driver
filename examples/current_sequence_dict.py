@@ -68,10 +68,10 @@ def main() -> int:
                 "elapsed_s",
                 "sample_index",
                 "step_name",
-                "voltage_v",
-                "current_a",
-                "power_w",
-                "discharge_capacity",
+                "voltage_V",
+                "current_A",
+                "power_W",
+                "discharge_capacity_mAh",
             ],
         )
         apply_common_settings(load, RUN)

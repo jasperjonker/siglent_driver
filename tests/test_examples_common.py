@@ -108,7 +108,7 @@ def test_append_discharge_capacity_records_value() -> None:
     enabled = common.append_discharge_capacity(row, FakeLoad(capacity=0.123), True)
 
     assert enabled is True
-    assert row["discharge_capacity"] == 0.123
+    assert row["discharge_capacity_mAh"] == 123.0
 
 
 def test_append_discharge_capacity_disables_on_query_error(caplog: pytest.LogCaptureFixture) -> None:
@@ -118,5 +118,5 @@ def test_append_discharge_capacity_disables_on_query_error(caplog: pytest.LogCap
         enabled = common.append_discharge_capacity(row, FakeLoad(exc=InstrumentError("timeout")), True)
 
     assert enabled is False
-    assert row["discharge_capacity"] == ""
+    assert row["discharge_capacity_mAh"] == ""
     assert "Skipping discharge capacity logging" in caplog.text

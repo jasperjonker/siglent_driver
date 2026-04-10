@@ -204,23 +204,25 @@ def measurement_row(
         "elapsed_s": round(elapsed_s, 3),
         "sample_index": sample_index,
         "step_name": step_name,
-        **measurement.to_dict(),
+        "voltage_V": measurement.voltage_v,
+        "current_A": measurement.current_a,
+        "power_W": measurement.power_w,
     }
 
 
 def append_discharge_capacity(row: dict[str, object], load: SiglentSDL1030, enabled: bool) -> bool:
     if not enabled:
-        row["discharge_capacity"] = ""
+        row["discharge_capacity_mAh"] = ""
         return False
     try:
-        row["discharge_capacity"] = load.get_battery_discharge_capacity()
+        row["discharge_capacity_mAh"] = load.get_battery_discharge_capacity() * 1000.0
         return True
     except InstrumentError as exc:
         logging.getLogger(__name__).warning(
             "Skipping discharge capacity logging because the instrument did not answer the query: %s",
             exc,
         )
-        row["discharge_capacity"] = ""
+        row["discharge_capacity_mAh"] = ""
         return False
 
 
