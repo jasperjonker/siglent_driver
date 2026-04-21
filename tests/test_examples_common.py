@@ -15,15 +15,51 @@ COMMON_SPEC.loader.exec_module(common)
 
 
 class FakeLoad:
-    def __init__(self, capacity: float | None = None, exc: Exception | None = None) -> None:
+    def __init__(
+        self,
+        capacity: float | None = None,
+        exc: Exception | None = None,
+        measured_voltage: float | None = None,
+        voltage_exc: Exception | None = None,
+    ) -> None:
         self.capacity = capacity
         self.exc = exc
+        self.measured_voltage = measured_voltage
+        self.voltage_exc = voltage_exc
 
     def get_battery_discharge_capacity(self) -> float:
         if self.exc is not None:
             raise self.exc
         assert self.capacity is not None
         return self.capacity
+
+    def measure_voltage(self) -> float:
+        if self.voltage_exc is not None:
+            raise self.voltage_exc
+        assert self.measured_voltage is not None
+        return self.measured_voltage
+
+
+class RecorderLoad:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, object]] = []
+
+    def set_4wire_enabled(self, enabled: bool) -> None:
+        self.calls.append(("set_4wire_enabled", enabled))
+
+    def set_turn_on_voltage(self, volts: float) -> None:
+        self.calls.append(("set_turn_on_voltage", volts))
+
+    def set_turn_on_voltage_latch_enabled(self, enabled: bool) -> None:
+        self.calls.append(("set_turn_on_voltage_latch_enabled", enabled))
+
+    def configure_battery_stops(
+        self,
+        voltage_v: float | None = None,
+        capacity_ah: float | None = None,
+        timer_s: float | None = None,
+    ) -> None:
+        self.calls.append(("configure_battery_stops", (voltage_v, capacity_ah, timer_s)))
 
 
 def test_usb_visa_resource_match_accepts_pyvisa_py_format() -> None:
@@ -120,3 +156,53 @@ def test_append_discharge_capacity_disables_on_query_error(caplog: pytest.LogCap
     assert enabled is False
     assert row["discharge_capacity_mAh"] == ""
     assert "Skipping discharge capacity logging" in caplog.text
+
+
+def test_resolve_current_range_uses_explicit_value() -> None:
+    assert common.resolve_current_range(30.0, 2.0, 4.0) == 30.0
+
+
+def test_resolve_current_range_uses_max_candidate_for_auto() -> None:
+    assert common.resolve_current_range(common.AUTO_RANGE, 2.0, 5.1, 4.0) == 5.1
+    assert common.resolve_current_range(None, 2.0, -8.0, 4.0) == 8.0
+
+
+def test_resolve_voltage_range_uses_measured_input_voltage_for_auto() -> None:
+    load = FakeLoad(measured_voltage=48.2)
+
+    assert common.resolve_voltage_range(load, common.AUTO_RANGE, 26.0, None) == 48.2
+
+
+def test_resolve_voltage_range_falls_back_to_configured_candidates() -> None:
+    load = FakeLoad(voltage_exc=InstrumentError("measure failed"))
+
+    assert common.resolve_voltage_range(load, None, 26.0, 54.0) == 54.0
+
+
+def test_resolve_voltage_range_uses_explicit_value() -> None:
+    load = FakeLoad(measured_voltage=48.2)
+
+    assert common.resolve_voltage_range(load, 36.0, 54.0) == 36.0
+
+
+def test_apply_battery_test_settings_uses_battery_stop_configuration() -> None:
+    load = RecorderLoad()
+
+    common.apply_battery_test_settings(
+        load,
+        {
+            "enable_4wire": True,
+            "turn_on_voltage_v": 10.5,
+            "turn_on_voltage_latch_enabled": True,
+            "voltage_stop_v": 26.0,
+            "capacity_stop_ah": 1.5,
+            "timer_stop_s": 120.0,
+        },
+    )
+
+    assert load.calls == [
+        ("set_4wire_enabled", True),
+        ("set_turn_on_voltage", 10.5),
+        ("set_turn_on_voltage_latch_enabled", True),
+        ("configure_battery_stops", (26.0, 1.5, 120.0)),
+    ]

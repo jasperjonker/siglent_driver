@@ -43,7 +43,7 @@ lan_resource = "TCPIP0::192.168.1.55::inst0::INSTR"
 
 Each example has two blocks at the top:
 - `CONNECTION` defaults to auto-detecting the SDL over VISA-over-USB with `pyvisa-py`, with explicit USB/LAN/USBTMC alternatives
-- `RUN` for 4-wire sense, enum-based fixed ranges, OCP/OPP, documented turn-on voltage behavior, built-in stop conditions, current levels, timing, and sampling
+- `RUN` for 4-wire sense, explicit or auto-selected fixed ranges, static-mode protections where applicable, documented turn-on voltage behavior, built-in battery stop conditions, current levels, timing, and sampling
 
 Available examples:
 

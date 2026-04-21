@@ -14,10 +14,10 @@ Each example in this folder follows the same layout:
 2. `RUN`
    Use this section to change the actual test behavior:
    - `enable_4wire` for Kelvin sense
-   - `CurrentRange` / `VoltageRange` enum values for the fixed SDL ranges
-   - `current_protection_*` and `power_protection_*`
-   - documented `turn_on_voltage_*` settings
-   - built-in battery stop conditions such as `voltage_stop_v`, `capacity_stop_ah`, and `timer_stop_s`
+   - explicit range values or `AUTO` for the fixed SDL `5/30 A` and `36/150 V` ranges
+   - `current_protection_*` and `power_protection_*` for the static CC sequence example
+   - documented `turn_on_voltage_*` settings when relevant
+   - built-in battery stop conditions `voltage_stop_v`, `capacity_stop_ah`, and `timer_stop_s` for the battery examples
    - currents, timing, and sample interval
    - sequence steps for the dict-driven example
 

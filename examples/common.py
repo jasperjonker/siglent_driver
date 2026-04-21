@@ -15,6 +15,7 @@ LAN_VISA_RESOURCE = "TCPIP0::192.168.1.55::inst0::INSTR"
 USBTMC_RESOURCE = "/dev/usbtmc0"
 SIGLENT_USB_VENDOR_ID = 0xF4EC
 SIGLENT_SDL1030_USB_PRODUCT_ID = 0x1621
+AUTO_RANGE = "AUTO"
 
 
 def create_log_path(stem: str) -> Path:
@@ -163,6 +164,44 @@ def connect_from_config(connection: dict[str, object]) -> SiglentSDL1030:
     )
 
 
+def _numeric_candidates(*values: object) -> list[float]:
+    candidates: list[float] = []
+    for value in values:
+        if isinstance(value, (int, float)):
+            candidates.append(float(value))
+    return candidates
+
+
+def _is_auto_range_value(value: object) -> bool:
+    return value is None or (isinstance(value, str) and value.upper() == AUTO_RANGE)
+
+
+def resolve_current_range(explicit: object, *candidate_values: object) -> float:
+    if not _is_auto_range_value(explicit):
+        return float(explicit)
+    candidates = _numeric_candidates(*candidate_values)
+    if not candidates:
+        return 5.0
+    return max(abs(value) for value in candidates)
+
+
+def resolve_voltage_range(load: SiglentSDL1030, explicit: object, *candidate_values: object) -> float:
+    if not _is_auto_range_value(explicit):
+        return float(explicit)
+
+    candidates = _numeric_candidates(*candidate_values)
+    try:
+        candidates.append(abs(load.measure_voltage()))
+    except InstrumentError as exc:
+        logging.getLogger(__name__).debug(
+            "Skipping measured input voltage while resolving the auto voltage range: %s",
+            exc,
+        )
+    if not candidates:
+        return 36.0
+    return max(candidates)
+
+
 def apply_common_settings(load: SiglentSDL1030, options: dict[str, object]) -> None:
     load.set_4wire_enabled(bool(options.get("enable_4wire", False)))
 
@@ -190,6 +229,23 @@ def apply_common_settings(load: SiglentSDL1030, options: dict[str, object]) -> N
     power_protection_delay_s = options.get("power_protection_delay_s")
     if isinstance(power_protection_delay_s, (int, float)):
         load.set_power_protection_delay(float(power_protection_delay_s))
+
+
+def apply_battery_test_settings(load: SiglentSDL1030, options: dict[str, object]) -> None:
+    load.set_4wire_enabled(bool(options.get("enable_4wire", False)))
+
+    turn_on_voltage_v = options.get("turn_on_voltage_v")
+    if isinstance(turn_on_voltage_v, (int, float)):
+        load.set_turn_on_voltage(float(turn_on_voltage_v))
+
+    if "turn_on_voltage_latch_enabled" in options:
+        load.set_turn_on_voltage_latch_enabled(bool(options.get("turn_on_voltage_latch_enabled", False)))
+
+    load.configure_battery_stops(
+        voltage_v=options.get("voltage_stop_v") if isinstance(options.get("voltage_stop_v"), (int, float)) else None,
+        capacity_ah=options.get("capacity_stop_ah") if isinstance(options.get("capacity_stop_ah"), (int, float)) else None,
+        timer_s=options.get("timer_stop_s") if isinstance(options.get("timer_stop_s"), (int, float)) else None,
+    )
 
 
 def measurement_row(

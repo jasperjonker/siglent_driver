@@ -2,23 +2,26 @@
 """Run the battery/DCIR workflow and print the final result.
 
 Edit `CONNECTION` to choose USBTMC, VISA-over-USB, or VISA-over-LAN.
-Edit `RUN` to change 4-wire sense, I/V range, OCP/OPP, timing, current levels,
-and stop conditions.
+Edit `RUN` to change 4-wire sense, I/V range, timing, current levels,
+and the built-in V_STOP / C_STOP / T_STOP conditions.
 
 Note: on the tested SDL1030X firmware, the DCIR result may stay at `0.0`.
 """
 
 import time
 
-from siglent_driver import BatteryMode, CurrentRange, VoltageRange
+from siglent_driver import BatteryMode
 
 from common import (
+    AUTO_RANGE,
     AUTO_USB_VISA_RESOURCE,
     LAN_VISA_RESOURCE,
     USB_VISA_RESOURCE,
     USBTMC_RESOURCE,
-    apply_common_settings,
+    apply_battery_test_settings,
     connect_from_config,
+    resolve_current_range,
+    resolve_voltage_range,
 )
 
 
@@ -35,17 +38,14 @@ CONNECTION = {
 RUN = {
     "enable_4wire": True,
     "battery_mode": BatteryMode.DCR,
-    "current_range": CurrentRange.A5,
-    "voltage_range": VoltageRange.V36,
-    "current_protection_enabled": False,
-    "current_protection_a": 2.0,
-    "current_protection_delay_s": 0.1,
-    "power_protection_enabled": False,
-    "power_protection_w": 100.0,
-    "power_protection_delay_s": 0.1,
+    "current_range": AUTO_RANGE,
+    "voltage_range": AUTO_RANGE,
     # This is the documented turn-on voltage / latch setting, not a separate OVP command.
     "turn_on_voltage_v": None,
     "turn_on_voltage_latch_enabled": False,
+    "voltage_stop_v": None,
+    "capacity_stop_ah": None,
+    "timer_stop_s": None,
     "current1_a": 0.0,
     "current2_a": 4.0,
     "time1_s": 1.0,
@@ -59,10 +59,25 @@ RUN = {
 
 def main() -> int:
     with connect_from_config(CONNECTION) as load:
-        apply_common_settings(load, RUN)
         load.enter_battery_mode()
-        load.set_current_range("battery", RUN["current_range"])
-        load.set_voltage_range("battery", RUN["voltage_range"])
+        apply_battery_test_settings(load, RUN)
+        load.set_current_range(
+            "battery",
+            resolve_current_range(
+                RUN["current_range"],
+                RUN["current1_a"],
+                RUN["current2_a"],
+                RUN["battery_level_a"],
+            ),
+        )
+        load.set_voltage_range(
+            "battery",
+            resolve_voltage_range(
+                load,
+                RUN["voltage_range"],
+                RUN["turn_on_voltage_v"],
+            ),
+        )
         load.set_battery_mode(RUN["battery_mode"])
         battery_level_a = RUN.get("battery_level_a")
         if isinstance(battery_level_a, (int, float)):

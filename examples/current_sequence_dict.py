@@ -8,9 +8,10 @@ sample interval, or the step list.
 
 import time
 
-from siglent_driver import CurrentRange, LoadMode, VoltageRange
+from siglent_driver import LoadMode
 
 from common import (
+    AUTO_RANGE,
     AUTO_USB_VISA_RESOURCE,
     LAN_VISA_RESOURCE,
     USB_VISA_RESOURCE,
@@ -21,6 +22,8 @@ from common import (
     create_log_path,
     measurement_row,
     open_csv_writer,
+    resolve_current_range,
+    resolve_voltage_range,
     sleep_until_next_sample,
 )
 
@@ -38,8 +41,8 @@ CONNECTION = {
 RUN = {
     "enable_4wire": True,
     "mode": LoadMode.CC,
-    "current_range": CurrentRange.A30,
-    "voltage_range": VoltageRange.V36,
+    "current_range": AUTO_RANGE,
+    "voltage_range": AUTO_RANGE,
     "current_protection_enabled": False,
     "current_protection_a": 15.0,
     "current_protection_delay_s": 0.1,
@@ -76,8 +79,21 @@ def main() -> int:
         )
         apply_common_settings(load, RUN)
         load.set_mode(RUN["mode"])
-        load.set_current_range("current", RUN["current_range"])
-        load.set_voltage_range("current", RUN["voltage_range"])
+        load.set_current_range(
+            "current",
+            resolve_current_range(
+                RUN["current_range"],
+                *(step["current_a"] for step in RUN["steps"]),
+            ),
+        )
+        load.set_voltage_range(
+            "current",
+            resolve_voltage_range(
+                load,
+                RUN["voltage_range"],
+                RUN["turn_on_voltage_v"],
+            ),
+        )
         load.set_input_enabled(True)
 
         started = time.monotonic()

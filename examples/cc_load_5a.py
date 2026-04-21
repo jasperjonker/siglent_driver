@@ -2,7 +2,7 @@
 """Run the SDL1030X at 5 A and let the load stop itself at 26 V.
 
 Edit `CONNECTION` to choose USBTMC, VISA-over-USB, or VISA-over-LAN.
-Edit `RUN` to change 4-wire sense, range, OCP/OPP, turn-on voltage behavior,
+Edit `RUN` to change 4-wire sense, range, turn-on voltage behavior,
 the built-in V_STOP / C_STOP / T_STOP values, current, or sample interval.
 
 This uses the SDL battery CC mode so the instrument can enforce the stop
@@ -11,19 +11,22 @@ conditions internally instead of relying on script-side cutoff logic.
 
 import time
 
-from siglent_driver import BatteryMode, CurrentRange, VoltageRange
+from siglent_driver import BatteryMode
 
 from common import (
+    AUTO_RANGE,
     AUTO_USB_VISA_RESOURCE,
     LAN_VISA_RESOURCE,
     USB_VISA_RESOURCE,
     USBTMC_RESOURCE,
     append_discharge_capacity,
-    apply_common_settings,
+    apply_battery_test_settings,
     connect_from_config,
     create_log_path,
     measurement_row,
     open_csv_writer,
+    resolve_current_range,
+    resolve_voltage_range,
     sleep_until_next_sample,
 )
 
@@ -41,18 +44,12 @@ CONNECTION = {
 RUN = {
     "enable_4wire": True,
     "battery_mode": BatteryMode.CC,
-    "current_range": CurrentRange.A5,
-    "voltage_range": VoltageRange.V36,
-    "current_protection_enabled": False,
-    "current_protection_a": 8.0,
-    "current_protection_delay_s": 0.1,
-    "power_protection_enabled": False,
-    "power_protection_w": 300.0,
-    "power_protection_delay_s": 0.1,
+    "current_range": AUTO_RANGE,
+    "voltage_range": AUTO_RANGE,
     # This is the documented turn-on voltage / latch setting, not a separate OVP command.
     "turn_on_voltage_v": None,
     "turn_on_voltage_latch_enabled": False,
-    "voltage_stop_v": 26.0,
+    "voltage_stop_v": 15.0,
     "capacity_stop_ah": None,
     "timer_stop_s": None,
     "current_a": 5.0,
@@ -77,17 +74,26 @@ def main() -> int:
                 "discharge_capacity_mAh",
             ],
         )
-        apply_common_settings(load, RUN)
         load.enter_battery_mode()
+        apply_battery_test_settings(load, RUN)
         load.set_battery_mode(RUN["battery_mode"])
-        load.set_current_range("battery", RUN["current_range"])
-        load.set_voltage_range("battery", RUN["voltage_range"])
-        load.set_battery_level(float(RUN["current_a"]))
-        load.configure_battery_stops(
-            voltage_v=RUN["voltage_stop_v"],
-            capacity_ah=RUN["capacity_stop_ah"],
-            timer_s=RUN["timer_stop_s"],
+        load.set_current_range(
+            "battery",
+            resolve_current_range(
+                RUN["current_range"],
+                RUN["current_a"],
+            ),
         )
+        load.set_voltage_range(
+            "battery",
+            resolve_voltage_range(
+                load,
+                RUN["voltage_range"],
+                RUN["voltage_stop_v"],
+                RUN["turn_on_voltage_v"],
+            ),
+        )
+        load.set_battery_level(float(RUN["current_a"]))
         load.set_input_enabled(True)
 
         started = time.monotonic()
