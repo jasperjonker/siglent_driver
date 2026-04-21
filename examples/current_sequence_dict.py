@@ -22,6 +22,7 @@ from common import (
     create_log_path,
     measurement_row,
     open_csv_writer,
+    prompt_battery_serial,
     resolve_current_range,
     resolve_voltage_range,
     sleep_until_next_sample,
@@ -62,7 +63,8 @@ RUN = {
 
 
 def main() -> int:
-    csv_path = create_log_path("current_sequence")
+    battery_serial = prompt_battery_serial()
+    csv_path = create_log_path("current_sequence", battery_serial=battery_serial)
     with connect_from_config(CONNECTION) as load:
         handle, writer = open_csv_writer(
             csv_path,
@@ -123,7 +125,7 @@ def main() -> int:
             load.set_input_enabled(False)
             handle.close()
 
-    print(f"Wrote sequence log to {csv_path}")
+    print(f"Wrote sequence log for battery {battery_serial} to {csv_path}")
     return 0
 
 

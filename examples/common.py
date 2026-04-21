@@ -2,6 +2,7 @@ import csv
 from datetime import datetime, timezone
 import logging
 from pathlib import Path
+import re
 import time
 
 from siglent_driver import InstrumentError, SiglentSDL1030, configure_logging
@@ -18,11 +19,34 @@ SIGLENT_SDL1030_USB_PRODUCT_ID = 0x1621
 AUTO_RANGE = "AUTO"
 
 
-def create_log_path(stem: str) -> Path:
+def sanitize_filename_fragment(value: str) -> str:
+    sanitized = re.sub(r"[^A-Za-z0-9._-]+", "-", value.strip()).strip("._-")
+    if not sanitized:
+        raise ValueError("Filename fragment must contain at least one usable character.")
+    return sanitized
+
+
+def prompt_battery_serial() -> str:
+    while True:
+        try:
+            serial = input("Battery serial number: ")
+        except EOFError as exc:
+            raise SystemExit("Battery serial number is required to build the log filename.") from exc
+
+        try:
+            return sanitize_filename_fragment(serial)
+        except ValueError:
+            print("Enter a non-empty battery serial number. Filename-safe characters will be kept as-is.")
+
+
+def create_log_path(stem: str, battery_serial: str | None = None) -> Path:
     log_dir = ROOT / "log"
     log_dir.mkdir(exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    return log_dir / f"{timestamp}_{stem}.csv"
+    filename = f"{timestamp}_{stem}"
+    if battery_serial is not None:
+        filename = f"{filename}_{sanitize_filename_fragment(battery_serial)}"
+    return log_dir / f"{filename}.csv"
 
 
 def open_csv_writer(path: Path, fieldnames: list[str]) -> tuple[object, csv.DictWriter]:

@@ -22,7 +22,7 @@ Each example in this folder follows the same layout:
    - sequence steps for the dict-driven example
 
 3. Output
-   The CC and sequence examples write timestamped CSV files into `log/`.
+   The CC and sequence examples prompt for a battery serial number and write timestamped CSV files into `log/`, with the serial appended to the filename.
    The DCIR example prints the final result to the console.
 
 Available scripts:

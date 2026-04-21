@@ -5,7 +5,7 @@
 It is set up for practical bench use:
 - `pyvisa`, `pyvisa-py`, and `pyusb` are regular dependencies
 - examples are editable scripts with a config block at the top
-- example scripts support timestamped CSV logs where appropriate
+- CSV-writing examples prompt for a battery serial number and append it to the timestamped log filename
 - both VISA resource strings and Linux `/dev/usbtmc*` paths are supported
 
 ## Install
@@ -62,7 +62,7 @@ uv run python examples/dcir_battery_test.py
 uv run python examples/current_sequence_dict.py
 ```
 
-The CC and sequence examples write timestamped CSV files into `log/`. The DCIR example prints the final result to the console.
+The CC and sequence examples prompt for a battery serial number and write timestamped CSV files into `log/`, for example `20260421_120000_cc_load_5a_SN123.csv`. The DCIR example prints the final result to the console.
 
 ## Logging
 

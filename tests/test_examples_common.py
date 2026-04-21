@@ -138,6 +138,45 @@ def test_find_usb_resource_raises_when_no_usb_transport_matches(monkeypatch: pyt
         common.find_usb_resource("@py")
 
 
+def test_sanitize_filename_fragment_replaces_unsafe_characters() -> None:
+    assert common.sanitize_filename_fragment(" SN 12/34 ") == "SN-12-34"
+
+
+def test_sanitize_filename_fragment_rejects_empty_value() -> None:
+    with pytest.raises(ValueError, match="Filename fragment"):
+        common.sanitize_filename_fragment("   ")
+
+
+def test_create_log_path_appends_battery_serial(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(common, "ROOT", tmp_path)
+
+    path = common.create_log_path("cc_load_5a", battery_serial="SN 12/34")
+
+    assert path.parent == tmp_path / "log"
+    assert path.name.endswith("_cc_load_5a_SN-12-34.csv")
+
+
+def test_prompt_battery_serial_retries_until_valid(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    responses = iter(["   ", "SN 12/34"])
+    monkeypatch.setattr("builtins.input", lambda prompt: next(responses))
+
+    assert common.prompt_battery_serial() == "SN-12-34"
+    assert "Enter a non-empty battery serial number" in capsys.readouterr().out
+
+
+def test_prompt_battery_serial_raises_on_eof(monkeypatch: pytest.MonkeyPatch) -> None:
+    def raise_eof(prompt: str) -> str:
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", raise_eof)
+
+    with pytest.raises(SystemExit, match="Battery serial number is required"):
+        common.prompt_battery_serial()
+
+
 def test_append_discharge_capacity_records_value() -> None:
     row: dict[str, object] = {}
 
