@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the SDL1030X at 5 A and let the load stop itself at 26 V.
+"""Run the SDL1030X at X A and let the load stop itself at Y V.
 
 Edit `CONNECTION` to choose USBTMC, VISA-over-USB, or VISA-over-LAN.
 Edit `RUN` to change 4-wire sense, range, turn-on voltage behavior,
@@ -53,15 +53,15 @@ RUN = {
     "voltage_stop_v": 15.0,
     "capacity_stop_ah": None,
     "timer_stop_s": None,
-    "current_a": 5.0,
+    "current_a": 1.0,
     "sample_interval_s": 1.0,
-    "max_duration_s": 7200.0,
+    "max_duration_s": 36000.0,
 }
 
 
 def main() -> int:
     battery_serial = prompt_battery_serial()
-    csv_path = create_log_path("cc_load_5a", battery_serial=battery_serial)
+    csv_path = create_log_path("cc_load_1a", battery_serial=battery_serial)
     with connect_from_config(CONNECTION) as load:
         handle, writer = open_csv_writer(
             csv_path,
@@ -106,7 +106,7 @@ def main() -> int:
                 row = measurement_row(
                     elapsed_s=time.monotonic() - started,
                     sample_index=sample_index,
-                    step_name="battery_cc_5a",
+                    step_name="battery_cc_1a",
                     load=load,
                 )
                 discharge_capacity_enabled = append_discharge_capacity(
@@ -124,7 +124,7 @@ def main() -> int:
             load.set_input_enabled(False)
             handle.close()
 
-    print(f"Wrote 5 A stop-test log for battery {battery_serial} to {csv_path}")
+    print(f"Wrote 1 A stop-test log for battery {battery_serial} to {csv_path}")
     return 0
 
 
