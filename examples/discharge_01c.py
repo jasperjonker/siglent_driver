@@ -79,19 +79,27 @@ def run(args: argparse.Namespace) -> tuple[object, object]:
         capacity_ah = energy_wh = 0.0
         last = None
         stop = "maximum duration"
+        tail_fraction = 1.0
         started = time.monotonic()
+        deadline = started + args.max_duration_s
         with csv_path.open("w", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=fields)
             writer.writeheader()
             try:
                 load.set_input_enabled(True)
-                while time.monotonic() - started < args.max_duration_s:
+                while time.monotonic() < deadline:
                     if not load.is_input_enabled():
                         stop = "instrument stopped (voltage cutoff or another condition)"
+                        # Estimate an unknown cutoff time at the interval midpoint.
+                        tail_fraction = 0.5
                         break
                     sample = load.measure_all()
                     elapsed = time.monotonic() - started
-                    if last is not None:
+                    if last is None:
+                        hours = elapsed / 3600.0
+                        capacity_ah += sample.current_a * hours
+                        energy_wh += sample.power_w * hours
+                    else:
                         hours = (elapsed - last[0]) / 3600.0
                         capacity_ah += (last[1].current_a + sample.current_a) * hours / 2
                         energy_wh += (last[1].power_w + sample.power_w) * hours / 2
@@ -103,25 +111,33 @@ def run(args: argparse.Namespace) -> tuple[object, object]:
                     })
                     handle.flush()
                     last = (elapsed, sample)
-                    time.sleep(args.sample_interval_s)
+                    time.sleep(min(args.sample_interval_s, max(0.0, deadline - time.monotonic())))
+            except BaseException as exc:
+                stop = f"aborted ({type(exc).__name__})"
+                raise
             finally:
-                load.set_input_enabled(False)
-
-        summary = {
-            "serial": args.serial, "resource": args.resource, "rated_capacity_Ah": args.capacity_ah,
-            "set_current_A": current, "cutoff_voltage_V": args.cutoff_v,
-            "initial_voltage_V": initial_voltage, "last_loaded_voltage_V": last[1].voltage_v if last else "",
-            "elapsed_s": round(time.monotonic() - started, 3),
-            "capacity_Ah": round(capacity_ah, 6), "energy_Wh": round(energy_wh, 6),
-            "instrument_capacity_Ah": optional_battery_result(load.get_battery_discharge_capacity),
-            "instrument_time_s": optional_battery_result(load.get_battery_discharge_time),
-            "stop": stop, "sample_csv": str(csv_path),
-        }
-
-    with summary_path.open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(summary))
-        writer.writeheader()
-        writer.writerow(summary)
+                ended = time.monotonic() - started
+                if last is not None:
+                    hours = max(0.0, ended - last[0]) / 3600.0
+                    capacity_ah += last[1].current_a * hours * tail_fraction
+                    energy_wh += last[1].power_w * hours * tail_fraction
+                try:
+                    load.set_input_enabled(False)
+                finally:
+                    summary = {
+                        "serial": args.serial, "resource": args.resource, "rated_capacity_Ah": args.capacity_ah,
+                        "set_current_A": current, "cutoff_voltage_V": args.cutoff_v,
+                        "initial_voltage_V": initial_voltage, "last_loaded_voltage_V": last[1].voltage_v if last else "",
+                        "elapsed_s": round(ended, 3),
+                        "capacity_Ah": round(capacity_ah, 6), "energy_Wh": round(energy_wh, 6),
+                        "instrument_capacity_Ah": optional_battery_result(load.get_battery_discharge_capacity),
+                        "instrument_time_s": optional_battery_result(load.get_battery_discharge_time),
+                        "stop": stop, "sample_csv": str(csv_path),
+                    }
+                    with summary_path.open("w", newline="") as summary_handle:
+                        summary_writer = csv.DictWriter(summary_handle, fieldnames=list(summary))
+                        summary_writer.writeheader()
+                        summary_writer.writerow(summary)
     print(f"{stop}: {capacity_ah:.3f} Ah, {energy_wh:.3f} Wh. Logs: {csv_path}, {summary_path}")
     return csv_path, summary_path
 
