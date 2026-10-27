@@ -47,22 +47,24 @@ Each example has two blocks at the top:
 
 Available examples:
 
-- [cc_load_5a.py](/home/jasper/Documents/Wingtra/github/siglent_driver/examples/cc_load_5a.py): `5 A` run using the SDL's built-in stop conditions
-- [dcir_battery_test.py](/home/jasper/Documents/Wingtra/github/siglent_driver/examples/dcir_battery_test.py): battery/DCIR console result
-- [current_sequence_dict.py](/home/jasper/Documents/Wingtra/github/siglent_driver/examples/current_sequence_dict.py): CC sequence using a simple dict of steps (`2 A`, `5 A`, `10 A`)
+- [cc_load.py](examples/cc_load.py): single-pack run using the SDL's built-in stop conditions
+- [discharge_01c.py](examples/discharge_01c.py): one pack at 0.1C with a required pack-level voltage cutoff; run one process per SDL
+- [dcir_battery_test.py](examples/dcir_battery_test.py): battery/DCIR console result
+- [current_sequence_dict.py](examples/current_sequence_dict.py): CC sequence using a simple dict of steps (`2 A`, `5 A`, `10 A`)
 
 Folder guide:
-- [README.md](/home/jasper/Documents/Wingtra/github/siglent_driver/examples/README.md)
+- [README.md](examples/README.md)
 
 Run them from the repo root:
 
 ```bash
-uv run python examples/cc_load_5a.py
+uv run python examples/cc_load.py
+uv run python examples/discharge_01c.py --serial PACK1 --capacity-ah 20 --cutoff-v 15
 uv run python examples/dcir_battery_test.py
 uv run python examples/current_sequence_dict.py
 ```
 
-The CC and sequence examples prompt for a battery serial number and write timestamped CSV files into `log/`, for example `20260421_120000_cc_load_5a_SN123.csv`. The DCIR example prints the final result to the console.
+The CC and sequence examples prompt for a battery serial number and write timestamped CSV files into `log/`. The 0.1C example writes a sample CSV and summary CSV for each invocation; use a distinct `--resource` for each SDL when running two at once. The DCIR example prints the final result to the console.
 
 ## Logging
 
